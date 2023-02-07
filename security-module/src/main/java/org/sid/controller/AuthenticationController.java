@@ -1,6 +1,8 @@
 package org.sid.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -13,10 +15,14 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Objects;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @RestController
 public class AuthenticationController {
+
+    public static Logger logger = Logger.getLogger(AuthenticationController.class.getName());
 
     @Autowired
     JwtEncoder jwtEncoder;
@@ -24,10 +30,22 @@ public class AuthenticationController {
     @Autowired
     JwtDecoder jwtDecoder;
 
+    @Autowired
+    AuthenticationManager authenticationManager;
+
     @PostMapping("/token")
-    public Map<String,String> jwtToken(Authentication authentication){
+    public Map<String, String> jwtToken(String username, String password) {
+
+        logger.info("The username is " + username + " and password " + password);
+
+        Objects.requireNonNull(username);
+        Objects.requireNonNull(password);
 
         Instant instant = Instant.now();
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, password)
+        );
 
         String scope = authentication.getAuthorities()
                 .stream().map(GrantedAuthority::getAuthority)
@@ -37,7 +55,7 @@ public class AuthenticationController {
                 .subject(authentication.getName())
                 .issuedAt(instant)
                 .expiresAt(instant.plus(10, ChronoUnit.MINUTES))
-                .claim("scope",scope)
+                .claim("scope", scope)
                 .issuer("security-service")
                 .build();
 
